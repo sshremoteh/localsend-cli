@@ -1,0 +1,64 @@
+name: Build and Package LocalSend CLI
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-packages:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Download LocalSend CLI binaries
+        shell: pwsh
+        run: |
+          mkdir -Force downloads
+          gh release download v1.18.2 -R localsend/localsend -D downloads -p "LocalSend-CLI-*"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Linux Binaries
+        shell: pwsh
+        run: |
+          python -c "
+          import tarfile, os
+          os.makedirs('extracted/linux-x86-64', exist_ok=True)
+          with tarfile.open('downloads/LocalSend-CLI-1.18.2-linux-x86-64.tar.gz', 'r:gz') as tar:
+              tar.extractall('extracted/linux-x86-64')
+
+          os.makedirs('extracted/linux-arm-64', exist_ok=True)
+          with tarfile.open('downloads/LocalSend-CLI-1.18.2-linux-arm-64.tar.gz', 'r:gz') as tar:
+              tar.extractall('extracted/linux-arm-64')
+          "
+
+      - name: Build DEB Packages
+        run: python packaging/build_deb.py
+
+      - name: Build Windows Installers
+        shell: pwsh
+        run: |
+          Copy-Item "downloads\LocalSend-CLI-1.18.2-windows-x86-64.exe" "packaging\windows\localsend-cli.exe"
+          Copy-Item "downloads\LocalSend-CLI-1.18.2-windows-x86-64.exe" "packaging\windows\localsend.exe"
+          iscc packaging\windows\localsend-cli.iss
+
+          Copy-Item "downloads\LocalSend-CLI-1.18.2-windows-arm-64.exe" "packaging\windows-arm64\localsend-cli.exe"
+          Copy-Item "downloads\LocalSend-CLI-1.18.2-windows-arm-64.exe" "packaging\windows-arm64\localsend.exe"
+          iscc packaging\windows-arm64\localsend-cli-arm64.iss
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: localsend-cli-installers
+          path: dist/*

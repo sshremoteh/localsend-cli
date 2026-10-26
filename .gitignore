@@ -1,0 +1,14 @@
+# Build outputs & temporary download directories
+dist/
+downloads/
+extracted/
+localsend-repo/
+
+# Binaries
+*.exe
+
+# Logs & temp
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
