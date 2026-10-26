@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Debian Package Generator for LocalSend CLI
-Builds official-grade .deb packages for amd64 and arm64 architectures.
+Builds official-grade .deb packages for amd64, arm64, and aarch64 architectures.
+Includes smart port-conflict detection, config templates, and systemd service.
 """
 
 import os
@@ -64,6 +65,109 @@ fi
 exit 0
 """
 
+DEFAULT_CONFIG_TEMPLATE = """# ==========================================
+# LocalSend CLI Configuration File
+# Location: ~/.config/localsend-cli/config.toml
+# ==========================================
+
+# Имя устройства, отображаемое другим участникам в локальной сети
+# По умолчанию: имя хоста системы
+# alias = "Linux-Device"
+
+# Порт HTTP-сервера (по умолчанию: 53317)
+# Если порт 53317 занят, укажите свободный (например, 53318):
+port = 53317
+
+# Каталог для сохранения входящих файлов
+# По умолчанию: ~/Downloads (или текущая папка)
+# destination = "~/Downloads"
+"""
+
+WRAPPER_SCRIPT = """#!/usr/bin/env bash
+# LocalSend CLI Launcher with Port Conflict Detection & Configuration Helper
+set -e
+
+BIN="/usr/lib/localsend-cli/localsend-cli-bin"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/localsend-cli"
+CONFIG_FILE="$CONFIG_DIR/config.toml"
+
+# Initialize default configuration if missing
+if [ ! -f "$CONFIG_FILE" ]; then
+    mkdir -p "$CONFIG_DIR" 2>/dev/null || true
+    if [ -f "/etc/localsend-cli/config.toml" ]; then
+        cp "/etc/localsend-cli/config.toml" "$CONFIG_FILE" 2>/dev/null || true
+    else
+        cat << 'EOF' > "$CONFIG_FILE" 2>/dev/null || true
+# LocalSend CLI configuration
+# alias = "My-Device"
+port = 53317
+# destination = "~/Downloads"
+EOF
+    fi
+fi
+
+# Quick helpers
+case "$1" in
+    config|--config)
+        echo "=== LocalSend CLI Config ($CONFIG_FILE) ==="
+        [ -f "$CONFIG_FILE" ] && cat "$CONFIG_FILE" || echo "Config file not found."
+        exit 0
+        ;;
+    --edit-config)
+        ${EDITOR:-nano} "$CONFIG_FILE"
+        exit 0
+        ;;
+esac
+
+# Check for explicit --port parameter
+has_port=0
+for arg in "$@"; do
+    if [ "$arg" = "--port" ] || [[ "$arg" == --port=* ]]; then
+        has_port=1
+        break
+    fi
+done
+
+# If --port was not explicitly specified, verify if default/configured port is already in use
+if [ "$has_port" -eq 0 ]; then
+    TARGET_PORT=53317
+    if [ -f "$CONFIG_FILE" ]; then
+        CFG_PORT=$(grep -E '^[[:space:]]*port[[:space:]]*=[[:space:]]*[0-9]+' "$CONFIG_FILE" 2>/dev/null | head -n1 | grep -oE '[0-9]+' || true)
+        [ -n "$CFG_PORT" ] && TARGET_PORT="$CFG_PORT"
+    fi
+
+    # Detect port collision
+    PID=""
+    if command -v ss >/dev/null 2>&1; then
+        PID=$(ss -tulpn "sport = :$TARGET_PORT" 2>/dev/null | grep -oE 'pid=[0-9]+' | head -n1 | cut -d= -f2 || true)
+    elif command -v fuser >/dev/null 2>&1; then
+        PID=$(fuser "$TARGET_PORT/tcp" 2>/dev/null | tr -d ' ' | head -n1 || true)
+    elif command -v lsof >/dev/null 2>&1; then
+        PID=$(lsof -ti ":$TARGET_PORT" 2>/dev/null | head -n1 || true)
+    fi
+
+    if [ -n "$PID" ]; then
+        PNAME=$(ps -p "$PID" -o comm= 2>/dev/null || echo "process")
+        echo -e "\\033[1;33m[LocalSend CLI] Внимание: Порт $TARGET_PORT уже занят процессом '$PNAME' (PID: $PID)!\\033[0m"
+        echo "  • Чтобы остановить занявший процесс: kill -9 $PID"
+        echo "  • Либо запустите на другом порту: localsend-cli --port $((TARGET_PORT + 1))"
+        echo "  • Либо отредактируйте конфиг: nano $CONFIG_FILE"
+        echo ""
+
+        # In interactive terminal, auto-prompt to use alternative port
+        if [ -t 0 ]; then
+            read -t 5 -p "Запустить на свободном порту $((TARGET_PORT + 1))? [Y/n]: " ans || ans="y"
+            echo ""
+            if [[ "$ans" =~ ^[Yy]?$ ]]; then
+                exec "$BIN" --port "$((TARGET_PORT + 1))" "$@"
+            fi
+        fi
+    fi
+fi
+
+exec "$BIN" "$@"
+"""
+
 DESKTOP_ENTRY = """[Desktop Entry]
 Name=LocalSend CLI
 GenericName=File Transfer CLI
@@ -113,14 +217,25 @@ localsend-cli -f /path/to/file.ext
 localsend-cli -f file1.txt -f file2.jpg
 ```
 
-## Options
+## Options & Commands
 
-- `--alias <NAME>`: Custom device name shown to other devices
-- `--port <PORT>`: HTTP server port (default: 53317)
-- `--destination <DIR>`: Directory where received files are saved (default: ~/Downloads)
-- `-f, --file <PATH>`: File to send (repeatable)
-- `-h, --help`: Show help
-- `-V, --version`: Show version
+- `--port <PORT>`: HTTP server port (default: 53317).
+- `--alias <NAME>`: Custom device name shown to other devices.
+- `--destination <DIR>`: Directory where received files are saved (default: ~/Downloads).
+- `-f, --file <PATH>`: File to send (repeatable).
+- `config` / `--config`: Display current configuration file.
+- `--edit-config`: Open configuration file in $EDITOR.
+- `-h, --help`: Show help.
+- `-V, --version`: Show version.
+
+## Configuration File
+
+Settings are saved in `~/.config/localsend-cli/config.toml`:
+```toml
+alias = "My-Linux-Server"
+port = 53318
+destination = "~/Downloads"
+```
 
 ## Interactive Dashboard Hotkeys
 
@@ -131,37 +246,16 @@ localsend-cli -f file1.txt -f file2.jpg
 - `Y` / `N` / `P`: Accept / Decline / Accept-and-Pair incoming transfer
 - `Ctrl+C`: Cancel current transfer or quit when idle
 
-## Systemd User Service
+## Systemd Service
 
 To run LocalSend CLI continuously as a background receiver:
 ```bash
 systemctl --user enable --now localsend-cli
 ```
-Check status:
-```bash
-systemctl --user status localsend-cli
-```
-Stop service:
-```bash
-systemctl --user stop localsend-cli
-```
 """
 
 
 def make_tar_gz(entries):
-    """
-    entries: list of dicts:
-      {
-        'name': str,
-        'mode': int,
-        'type': tarfile type (REGTYPE, DIRTYPE, SYMTYPE),
-        'size': int,
-        'data': bytes (if REGTYPE),
-        'linkname': str (if SYMTYPE),
-        'mtime': int
-      }
-    Returns gzipped tar bytes.
-    """
     buf = io.BytesIO()
     with gzip.GzipFile(fileobj=buf, mode='wb', mtime=1724250000) as gz:
         with tarfile.open(fileobj=gz, mode='w') as tar:
@@ -189,21 +283,9 @@ def make_tar_gz(entries):
 
 
 def write_ar_archive(out_path, files):
-    """
-    files: list of (filename: str, data: bytes)
-    Writes a standard ar archive (.deb).
-    """
     with open(out_path, 'wb') as f:
         f.write(b'!<arch>\n')
         for name, data in files:
-            # ar header format:
-            # name: 16 chars
-            # mtime: 12 chars
-            # uid: 6 chars
-            # gid: 6 chars
-            # mode: 8 chars
-            # size: 10 chars
-            # magic: 2 chars (`\n)
             name_field = f"{name:<16}".encode('ascii')
             mtime_field = f"{1724250000:<12}".encode('ascii')
             uid_field = f"{0:<6}".encode('ascii')
@@ -217,7 +299,7 @@ def write_ar_archive(out_path, files):
             f.write(header)
             f.write(data)
             if len(data) % 2 != 0:
-                f.write(b'\n')  # 2-byte alignment padding
+                f.write(b'\n')
 
 
 def build_deb(binary_path, arch, out_dir):
@@ -237,6 +319,8 @@ def build_deb(binary_path, arch, out_dir):
         len(binary_data)
         + len(icon_data)
         + len(license_data)
+        + len(WRAPPER_SCRIPT.encode('utf-8'))
+        + len(DEFAULT_CONFIG_TEMPLATE.encode('utf-8'))
         + len(DESKTOP_ENTRY.encode('utf-8'))
         + len(SYSTEMD_SERVICE.encode('utf-8'))
         + len(README_DOC.encode('utf-8'))
@@ -261,13 +345,29 @@ def build_deb(binary_path, arch, out_dir):
     # 2. Build data.tar.gz
     data_entries = [
         {'name': './', 'mode': 0o755, 'type': tarfile.DIRTYPE},
+        {'name': './etc', 'mode': 0o755, 'type': tarfile.DIRTYPE},
+        {'name': './etc/localsend-cli', 'mode': 0o755, 'type': tarfile.DIRTYPE},
+        {
+            'name': './etc/localsend-cli/config.toml',
+            'mode': 0o644,
+            'type': tarfile.REGTYPE,
+            'data': DEFAULT_CONFIG_TEMPLATE.encode('utf-8')
+        },
         {'name': './usr', 'mode': 0o755, 'type': tarfile.DIRTYPE},
+        {'name': './usr/lib', 'mode': 0o755, 'type': tarfile.DIRTYPE},
+        {'name': './usr/lib/localsend-cli', 'mode': 0o755, 'type': tarfile.DIRTYPE},
+        {
+            'name': './usr/lib/localsend-cli/localsend-cli-bin',
+            'mode': 0o755,
+            'type': tarfile.REGTYPE,
+            'data': binary_data
+        },
         {'name': './usr/bin', 'mode': 0o755, 'type': tarfile.DIRTYPE},
         {
             'name': './usr/bin/localsend-cli',
             'mode': 0o755,
             'type': tarfile.REGTYPE,
-            'data': binary_data
+            'data': WRAPPER_SCRIPT.encode('utf-8')
         },
         {
             'name': './usr/bin/localsend',
@@ -307,7 +407,6 @@ def build_deb(binary_path, arch, out_dir):
             'type': tarfile.REGTYPE,
             'data': license_data
         },
-        {'name': './usr/lib', 'mode': 0o755, 'type': tarfile.DIRTYPE},
         {'name': './usr/lib/systemd', 'mode': 0o755, 'type': tarfile.DIRTYPE},
         {'name': './usr/lib/systemd/user', 'mode': 0o755, 'type': tarfile.DIRTYPE},
         {
