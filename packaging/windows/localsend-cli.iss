@@ -2,7 +2,7 @@
 ; Generates Windows Installer executable (.exe)
 
 #define MyAppName "LocalSend CLI"
-#define MyAppVersion "1.18.2"
+#define MyAppVersion "1.0.0"
 #define MyAppPublisher "LocalSend Team"
 #define MyAppURL "https://localsend.org"
 #define MyAppExeName "localsend-cli.exe"
@@ -19,7 +19,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=..\..\dist
-OutputBaseFilename=LocalSend-CLI-1.18.2-windows-x86_64-setup
+OutputBaseFilename=LocalSend-CLI-1.0.0-windows-x86_64-setup
 SetupIconFile=logo.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2/ultra

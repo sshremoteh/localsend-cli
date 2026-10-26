@@ -51,18 +51,18 @@
 
 ## 📥 Скачать установщики (Releases)
 
-Все готовые пакеты доступны в разделе [Releases v1.18.2](https://github.com/sshremoteh/localsend-cli/releases/tag/v1.18.2):
+Все готовые пакеты доступны в разделе [Releases v1.0](https://github.com/sshremoteh/localsend-cli/releases/tag/v1.0):
 
 | Платформа | Архитектура | Формат | Ссылка |
 | :--- | :--- | :--- | :--- |
-| **Windows** | x86_64 (64-bit) | `.exe` Setup | [LocalSend-CLI-1.18.2-windows-x86_64-setup.exe](https://github.com/sshremoteh/localsend-cli/releases/download/v1.18.2/LocalSend-CLI-1.18.2-windows-x86_64-setup.exe) |
-| **Windows** | ARM64 | `.exe` Setup | [LocalSend-CLI-1.18.2-windows-arm64-setup.exe](https://github.com/sshremoteh/localsend-cli/releases/download/v1.18.2/LocalSend-CLI-1.18.2-windows-arm64-setup.exe) |
-| **Linux** | ARM64 / AArch64 | `.deb` | [localsend-cli_1.18.2_arm64.deb](https://github.com/sshremoteh/localsend-cli/releases/download/v1.18.2/localsend-cli_1.18.2_arm64.deb) |
-| **Linux** | AArch64 (alias) | `.deb` | [localsend-cli_1.18.2_aarch64.deb](https://github.com/sshremoteh/localsend-cli/releases/download/v1.18.2/localsend-cli_1.18.2_aarch64.deb) |
-| **Linux** | amd64 (x86_64) | `.deb` | [localsend-cli_1.18.2_amd64.deb](https://github.com/sshremoteh/localsend-cli/releases/download/v1.18.2/localsend-cli_1.18.2_amd64.deb) |
-| **Linux** | AArch64 (ELF) | Binary | [localsend-cli-1.18.2-linux-aarch64](https://github.com/sshremoteh/localsend-cli/releases/download/v1.18.2/localsend-cli-1.18.2-linux-aarch64) |
+| **Windows** | x86_64 (64-bit) | `.exe` Setup | [LocalSend-CLI-1.0.0-windows-x86_64-setup.exe](https://github.com/sshremoteh/localsend-cli/releases/download/v1.0/LocalSend-CLI-1.0.0-windows-x86_64-setup.exe) |
+| **Windows** | ARM64 | `.exe` Setup | [LocalSend-CLI-1.0.0-windows-arm64-setup.exe](https://github.com/sshremoteh/localsend-cli/releases/download/v1.0/LocalSend-CLI-1.0.0-windows-arm64-setup.exe) |
+| **Linux** | ARM64 / AArch64 | `.deb` | [localsend-cli_1.0.0_arm64.deb](https://github.com/sshremoteh/localsend-cli/releases/download/v1.0/localsend-cli_1.0.0_arm64.deb) |
+| **Linux** | AArch64 (alias) | `.deb` | [localsend-cli_1.0.0_aarch64.deb](https://github.com/sshremoteh/localsend-cli/releases/download/v1.0/localsend-cli_1.0.0_aarch64.deb) |
+| **Linux** | amd64 (x86_64) | `.deb` | [localsend-cli_1.0.0_amd64.deb](https://github.com/sshremoteh/localsend-cli/releases/download/v1.0/localsend-cli_1.0.0_amd64.deb) |
+| **Linux** | AArch64 (ELF) | Binary | [localsend-cli-1.0.0-linux-aarch64](https://github.com/sshremoteh/localsend-cli/releases/download/v1.0/localsend-cli-1.0.0-linux-aarch64) |
 
-Хэши файлов: [SHA256SUMS.txt](https://github.com/sshremoteh/localsend-cli/releases/download/v1.18.2/SHA256SUMS.txt).
+Хэши файлов: [SHA256SUMS.txt](https://github.com/sshremoteh/localsend-cli/releases/download/v1.0/SHA256SUMS.txt).
 
 ---
 
@@ -74,7 +74,7 @@
 
 ```bash
 # Скачивание пакета с переходом по редиректу:
-curl -fsSL -o localsend-cli.deb "https://github.com/sshremoteh/localsend-cli/releases/download/v1.18.2/localsend-cli_1.18.2_arm64.deb"
+curl -fsSL -o localsend-cli.deb "https://github.com/sshremoteh/localsend-cli/releases/download/v1.0/localsend-cli_1.0.0_arm64.deb"
 
 # Установка:
 sudo apt install ./localsend-cli.deb
@@ -83,7 +83,7 @@ sudo dpkg -i ./localsend-cli.deb
 ```
 
 ### Windows (EXE):
-1. Скачайте `LocalSend-CLI-1.18.2-windows-x86_64-setup.exe`.
+1. Скачайте `LocalSend-CLI-1.0.0-windows-x86_64-setup.exe`.
 2. Запустите установщик (он автоматически добавит программу в `PATH` и добавит пункт контекстного меню).
 3. Введите `localsend` в командной строке.
 

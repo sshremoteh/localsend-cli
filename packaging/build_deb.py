@@ -13,7 +13,7 @@ import gzip
 import tarfile
 from pathlib import Path
 
-VERSION = "1.18.2"
+VERSION = "1.0.0"
 
 CONTROL_TEMPLATE = """Package: localsend-cli
 Version: {version}
